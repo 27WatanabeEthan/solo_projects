@@ -34,7 +34,7 @@ def decay_sim(N0, plot, *args):
     >>> populations, time = decay_sim(1e9, True, "222rn", "218po", "214pb")
 
     Notes:
-        The maximum simulation time is set to five times the shortest half-life
+        The maximum simulation time is set to ten times the shortest half-life
         in the chain, discretized into 1000 steps, and populations are updated
         using an explicit Euler-like method.
     """
@@ -77,9 +77,9 @@ def decay_sim(N0, plot, *args):
         chain = np.append(chain, arg)
         half_lives = np.append(half_lives, half_life)
         nuclei = np.append(nuclei, nucleus)
-        
+
     decay_constants = 0.69314718/half_lives
-    tmax = 5*np.min(half_lives) # until the fastest decaying nuclei is pretty much gone
+    tmax = 10*np.min(half_lives) # until the fastest decaying nuclei is pretty much gone
     ts = np.linspace(0, tmax, 1000)
     populations = {}
     I = 1000 # number of iterations
@@ -116,5 +116,5 @@ def decay_sim(N0, plot, *args):
 
 
 if __name__ == '__main__':
-    populations, time = decay_sim(1e9, True, "222rn", "218po", "214pb")
-    print(f"After {time[500]:.1f} seconds we have {populations.get("218po")[500]:g}")
+    populations, time = decay_sim(1e9, True, "131te", "131i")
+    # print(f"After {time[500]:.1f} seconds we have {populations.get("218po")[500]:g}")
