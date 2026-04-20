@@ -124,4 +124,5 @@ def decay_sim(N0, plot, *args):
 if __name__ == '__main__':
     populations, time = decay_sim(1e12, True, "132Sn", "132Sb", "132Te", "132I")
     rng = np.random.default_rng()
+    print("Hi")
     # print(f"After {time[500]:.1f} seconds we have {populations.get("218po")[500]:g}")
