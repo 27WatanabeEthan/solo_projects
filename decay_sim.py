@@ -79,10 +79,11 @@ def decay_sim(N0, plot, *args):
         nuclei = np.append(nuclei, nucleus)
 
     decay_constants = 0.69314718/half_lives
-    tmax = 10*np.min(half_lives) # until the fastest decaying nuclei is pretty much gone
-    ts = np.linspace(0, tmax, 1000)
+    I = int(20000) # number of iterations
+    tmax = 50*np.min(half_lives) # until the fastest decaying nuclei is pretty much gone
+    ts = np.linspace(0, tmax, I)
     populations = {}
-    I = 1000 # number of iterations
+    
 
     for i in range(len(chain)):
         l = decay_constants[i]
@@ -93,6 +94,8 @@ def decay_sim(N0, plot, *args):
                     nuc_pop[0] = N0
                 else:
                     nuc_pop[k] = -l*nuc_pop[k-1]*(tmax/I) + nuc_pop[k-1]
+                    # if nuc_pop[k] < 1:
+                    #     nuc_pop[k] = 0
         else:
             for k in range(i, I):
                 prev_pop = populations.get(chain[i-1])
@@ -100,6 +103,8 @@ def decay_sim(N0, plot, *args):
                     nuc_pop[k] = prev_pop[k-1] - prev_pop[k] # add to this nucleus' population from previous nucleus' decays
                 else:
                     nuc_pop[k] = (tmax/I)*(decay_constants[i-1]*prev_pop[k-1] - l*nuc_pop[k-1]) + nuc_pop[k-1]
+                    # if nuc_pop[k] < 1:
+                    #     nuc_pop[k] = 0
         populations.update({chain[i]: nuc_pop})
         if plot:
             plt.plot(ts, nuc_pop, label=chain[i])
@@ -111,10 +116,12 @@ def decay_sim(N0, plot, *args):
         plt.legend()
         # plt.xscale("log")
         plt.yscale("log")
+        plt.tight_layout()
         plt.show()
     return populations, ts
 
 
 if __name__ == '__main__':
-    populations, time = decay_sim(1e9, True, "131te", "131i")
+    populations, time = decay_sim(1e12, True, "132Sn", "132Sb", "132Te", "132I")
+    rng = np.random.default_rng()
     # print(f"After {time[500]:.1f} seconds we have {populations.get("218po")[500]:g}")
