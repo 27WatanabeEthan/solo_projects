@@ -42,7 +42,10 @@ class neutron{
         void initialize(Reactor &reactor, int core_section_num);
         int sample_collision(Reactor &reactor, const Section &current_section);
 
-        void print_coords(){ std::cout << x << " " << y << " " << z << "\n"; }
+        void print_coords(){
+            std::cout << "r = " << r << ": ";
+            std::cout << "(" << x << ", " << y << ", " << z << ")\n";
+        }
 };
 class Reactor{
     private:
@@ -62,6 +65,7 @@ class Reactor{
         int transmitted = 0;
         int absorbed = 0;
         int fissioned = 0;
+        int reflected = 0;
 
         double get_size() const { return size; }
         int get_geometry() const { return geometry; }
@@ -83,7 +87,7 @@ class Reactor{
                     return i;
                 }else if(dist < 0){
                     // we have reflected out of the reactor
-                    return -2;
+                    return -1;
                 }
                 else{
                     coord += setup[i+1].get_size();
@@ -116,15 +120,14 @@ void neutron::traverse(Reactor &reactor){
             Section current_section = reactor.setup[current_section_num];
             // to determine if the neutron has crossed a boundary or not
             double ri = 0;
-            double ro = 0;
             for(int i = 0; i < current_section_num; i++){
                 ri += reactor.setup[i].get_size();
-                ro += reactor.setup[i].get_size();
+                // ro += reactor.setup[i].get_size();
             }
-            ro += reactor.setup[current_section_num].get_size();
-            double s = sample_dist(reactor, current_section);
-            double theta = acos(1 - 2*random(reactor.rd));
-            double phi = 2*M_PI*random(reactor.rd);
+            double ro = ri + reactor.setup[current_section_num].get_size();
+            const double s = sample_dist(reactor, current_section);
+            const double theta = acos(1 - 2*random(reactor.rd));
+            const double phi = 2*M_PI*random(reactor.rd);
             x += s*cos(phi)*sin(theta);
             y += s*sin(phi)*sin(theta);
             z += s*cos(theta);
@@ -210,6 +213,90 @@ void neutron::traverse(Reactor &reactor){
             }
         }
     }
+    else if(reactor.get_geometry() == 0){
+        // slab reactor
+        while(is_alive){
+            int current_section_num = reactor.get_location(r);
+            Section current_section = reactor.setup[current_section_num];
+            // to determine if the neutron has crossed a boundary or not
+            double ri = 0;
+            for(int i = 0; i < current_section_num; i++){
+                ri += reactor.setup[i].get_size();
+                // ro += reactor.setup[i].get_size();
+            }
+            double ro = ri + reactor.setup[current_section_num].get_size();
+            const double s = sample_dist(reactor, current_section);
+            const double mu = 1 - 2*random(reactor.rd);
+            // std::cout << s*mu << "\n";
+            r += s*mu;
+            if(r >= ro){
+                if(r >= reactor.get_size()){
+                    // we have transmitted
+                    // std::cout << "I have transmitted out\n";
+                    // print_coords();
+                    reactor.transmitted++;
+                    is_alive = false;
+                    break;
+                }
+                // std::cout << "I have traversed further out\n";
+                // print_coords();
+                // traversed out through ro and we have to backtrack to boundary
+                // we will recalculate s such that the neutron traverses right onto the boundary
+                // quadratic components
+                // std::cout << s*mu << "\n";
+                r -= s*mu;
+                // std::cout << mu << "\n";
+                // r = sqrt(x*x + y*y + z*z);
+                // std::cout << "I now backtrack\n";
+                // print_coords();
+                double s_new = ro - r; 
+                r += s_new + 1e-7;
+                // we nudge the particle slightly past the boundary so that we get cross section data in the next section
+  
+                // std::cout << "Here are my new coords: r = " << r << "\n";
+                // print_coords();
+            }else if(r < ri){
+                if(r < 0.0){
+                    // we have reflected
+                    // std::cout << "I have reflected back out\n";
+                    // print_coords();
+                    reactor.reflected++;
+                    is_alive = false;
+                    break;
+                }
+                // std::cout << "I have traversed closer in\n";
+                // print_coords();
+                // traversed in through ri and we have to backtrack to boundary
+                // we will recalculate s such that the neutron traverses right onto the boundary
+                // quadratic components
+                r -= s*mu;
+                // r = sqrt(x*x + y*y + z*z);
+                // std::cout << "I now backtrack\n";
+                // print_coords();
+                double s_new = r - ri; 
+                r -= (s_new + 1e-7);
+                // we nudge the particle slightly past the boundary so that we get cross section data in the next section
+
+                // std::cout << "Here are my new coords: r = " << r << "\n";
+                // print_coords();
+            }else{
+                // else we sample a collision within the current section
+                int collision = sample_collision(reactor, current_section);
+                if(collision == 0){
+                    // absorbed
+                    reactor.absorbed++;
+                    is_alive = false;
+                }else if(collision == 1){
+                    // fissioned
+                    reactor.fissioned++;
+                    is_alive = false;
+                }else{
+                    // scattered
+                    continue;
+                }
+            }
+        }
+    }
 }
 void neutron::initialize(Reactor &reactor, int core_section_num){
     std::uniform_real_distribution<double> random{0.0, 1.0};
@@ -241,6 +328,10 @@ void neutron::initialize(Reactor &reactor, int core_section_num){
         // }
         // std::cout << "\n";
         // std::cout << "I have initialized my position at r = " << r << "\n";
+    }else if(reactor.get_geometry() == 0){
+        // slab geometry
+        double sampled_r = ri + random(reactor.rd)*(ro - ri);
+        r = sampled_r;
     }
 }
 int neutron::sample_collision(Reactor &reactor, const Section &current_section){
@@ -270,6 +361,7 @@ struct SimulationResult{
     int transmitted;
     int absorbed;
     int fissioned;
+    int reflected;
 };
 SimulationResult run_simulation(Reactor &reactor, int num_neutrons, int core_num){
     reactor.reset_tallies();
@@ -278,7 +370,12 @@ SimulationResult run_simulation(Reactor &reactor, int num_neutrons, int core_num
         n.initialize(reactor, core_num);
         n.traverse(reactor);
     }
-    return {reactor.transmitted, reactor.absorbed, reactor.fissioned};
+    if(reactor.get_geometry() == 1){
+        return {reactor.transmitted, reactor.absorbed, reactor.fissioned, 0};
+    }else if(reactor.get_geometry() == 0){
+        return {reactor.transmitted, reactor.absorbed, reactor.fissioned, reactor.reflected};
+    }
+    return {-1, -1, -1, -1};
 }
 int main(){
     using std::cout;
@@ -288,23 +385,38 @@ int main(){
     my_reactor.add_section(plutonium);
     my_reactor.add_section(iron);
 
+    // Reactor my_reactor(0);
+    // Section s1(0.09, 0.01, 0.0, 0.10);
+    // Section s2(9.9, 0.1, 0.0, 0.10);
+    // Section s3(90.0, 10.0, 0.0, 0.10);
+    // my_reactor.add_section(s1);
+    // my_reactor.add_section(s2);
+    // my_reactor.add_section(s3);
+
+    // neutron n0 = my_reactor.n0;
+    // n0.initialize(my_reactor, 0);
+    // n0.print_coords();
+    // n0.traverse(my_reactor);
+    // n0.print_coords();
+
     int num_neutrons = 5000;
     SimulationResult result = run_simulation(my_reactor, num_neutrons, 0);
     // std::cout << "Fissions: " << result.fissioned << "\n";
     
-    auto [t, a, f] = result;
+    auto [t, a, f, r] = result;
 
     std::cout << std::setprecision(6);
     cout << "Transmitted: " << (double)t/num_neutrons << "\n";
     cout << "Absorbed: " << (double)a/num_neutrons << "\n";
     cout << "Fissioned: " << (double)f/num_neutrons << "\n";
+    cout << "Reflected: " << (double)r/num_neutrons << "\n";
 
     int num_tests = 250;
     std::ofstream my_file("toymc_data.csv");
     my_file << "transmitted,absorbed,fissioned\n";
     for(int i = 0; i < num_tests; i++){
         SimulationResult result = run_simulation(my_reactor, num_neutrons, 0);
-        auto [t, a, f] = result;
+        auto [t, a, f, r] = result;
         my_file << (double)t/num_neutrons << "," << (double)a/num_neutrons << "," << (double)f/num_neutrons << "\n";
     }
 
