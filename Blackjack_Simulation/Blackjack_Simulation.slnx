@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../Cpp_learning/Blackjack/Blackjack.vcxproj" Id="ebcbd181-92cc-40c1-9a7b-4eafc18d42c2" />
+  <Project Path="Blackjack_Simulation/Blackjack_Simulation.vcxproj" Id="13d3f248-6432-4999-9a63-89d53e2fb163" />
+</Solution>

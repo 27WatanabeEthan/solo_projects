@@ -1,0 +1,3 @@
+﻿  Blackjack_Simulation.cpp
+C:\Users\ethan\projects\Blackjack_Simulation\Blackjack_Simulation\Blackjack_Simulation.cpp(394,1): warning C4715: 'game::playerDecision': not all control paths return a value
+  Blackjack_Simulation.vcxproj -> C:\Users\ethan\projects\Blackjack_Simulation\x64\Debug\Blackjack_Simulation.exe
